@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rainbow
 // @namespace    github-date-gradient
-// @version      1.3.2
+// @version      1.3.3
 // @description  GitHub 修改日期越久顏色越深，支援單色、彩色漸變及順序、倒序、原序排列。
 // @author       codex/GPT-6 Astra
 // @match        https://github.com/*
@@ -59,6 +59,7 @@
 
   // Isolated controls do not inherit GitHub's styles or trigger our observer.
   const host = document.createElement('div');
+  const controlsListItem = document.createElement('li');
   host.id = 'github-date-gradient-controls';
   host.style.cssText = 'position:fixed;right:16px;top:80px;z-index:1000;';
   const shadow = host.attachShadow({ mode: 'open' });
@@ -286,15 +287,20 @@
           widget = parent;
         } else break;
       }
-      const listItem = widget.closest('.pagehead-actions > li');
+      const listItem = star.closest('li');
       if (listItem) widget = listItem;
-      // A div inside the existing action list item keeps the list valid.
+      // Give Rainbow its own sibling list item beside the Star action.
       if (widget.tagName === 'LI') {
-        if (host.parentElement !== widget) widget.append(host);
-      } else if (widget.nextElementSibling !== host) widget.after(host);
-      if (host.dataset.placement !== 'star') {
-        host.dataset.placement = 'star';
-        host.style.cssText = 'display:inline-flex;position:relative;margin-left:8px;vertical-align:middle;align-self:center;flex-shrink:0;z-index:1000;';
+        if (host.parentElement !== controlsListItem) controlsListItem.append(host);
+        if (widget.nextElementSibling !== controlsListItem) widget.after(controlsListItem);
+      } else {
+        if (widget.nextElementSibling !== host) widget.after(host);
+        controlsListItem.remove();
+      }
+      const placement = widget.tagName === 'LI' ? 'star-list' : 'star';
+      if (host.dataset.placement !== placement) {
+        host.dataset.placement = placement;
+        host.style.cssText = `display:inline-flex;position:relative;margin-left:${placement === 'star-list' ? '0' : '8px'};vertical-align:middle;align-self:center;flex-shrink:0;z-index:1000;`;
       }
       const classes = star.className || 'btn btn-sm';
       if (toggle.className !== classes) toggle.className = classes;
@@ -313,6 +319,7 @@
     } else {
       // Stay at the top right while the header is loading or Star is hidden.
       if (host.parentElement !== document.body) document.body.append(host);
+      controlsListItem.remove();
       if (host.dataset.placement !== 'floating') {
         host.dataset.placement = 'floating';
         host.style.cssText = 'position:fixed;right:16px;top:80px;z-index:1000;';
@@ -326,6 +333,7 @@
     // Only mutate when visibility changes: 'hidden' is observed below.
     const hidden = entries.length === 0;
     if (host.hidden !== hidden) host.hidden = hidden;
+    if (controlsListItem.hidden !== hidden) controlsListItem.hidden = hidden;
     const active = new Set(settings.enabled ? entries.map(({ element }) => element) : []);
     for (const element of painted) {
       if (!active.has(element)) { clearDate(element); painted.delete(element); }
